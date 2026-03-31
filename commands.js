@@ -22,6 +22,9 @@ function Command() {
             }
 
             switch (commandText) {
+                case "/salir":
+                    game.requestLogout(ws);
+                    break;
                 case "/online":
                     handleProtocol.console(
                         `Usuarios online en PvE: ${vars.usuariosOnline}`,

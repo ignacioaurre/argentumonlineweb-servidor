@@ -244,6 +244,11 @@ function Npcs() {
                     return;
                 }
 
+                game.cancelLogout(
+                    idUser,
+                    "El cierre de sesión fue cancelado porque has sido atacado."
+                );
+
                 var directionNpc = npcs.findDirection(npc.pos, user.pos);
 
                 if (directionNpc != npc.heading) {

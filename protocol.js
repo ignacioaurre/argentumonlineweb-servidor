@@ -573,6 +573,10 @@ function position(ws) {
         var tileExit = vars.mapa[user.map][posY][posX].tileExit;
 
         if (typeof tileExit !== 'undefined') {
+            game.cancelLogout(
+                ws.id,
+                "El cierre de sesión fue cancelado porque te has movido."
+            );
             npcs.deleteUserToAllNpcs(ws.id);
             game.telep(ws, tileExit.map, tileExit.x, tileExit.y);
             return;
@@ -589,6 +593,11 @@ function position(ws) {
 
         user.pos.x = posX;
         user.pos.y = posY;
+
+        game.cancelLogout(
+            ws.id,
+            "El cierre de sesión fue cancelado porque te has movido."
+        );
 
         //Actualizo la posicion de todos los usuarios de mi area
         game.loopArea(ws, function(target) {
@@ -1087,6 +1096,11 @@ function attackMele(ws) {
 
         user.hitTimer = +Date.now();
 
+        game.cancelLogout(
+            ws.id,
+            "El cierre de sesión fue cancelado porque has atacado."
+        );
+
         var x = user.pos.x;
         var y = user.pos.y;
         var heading = user.heading;
@@ -1226,6 +1240,11 @@ function attackRange(ws) {
 
         user.hitSpell = +Date.now();
 
+        game.cancelLogout(
+            ws.id,
+            "El cierre de sesión fue cancelado porque has atacado."
+        );
+
         var pos = {
             x: pkg.getByte(),
             y: pkg.getByte()
@@ -1324,6 +1343,11 @@ function attackSpell(ws) {
         }
 
         user.hitSpell = +Date.now();
+
+        game.cancelLogout(
+            ws.id,
+            "El cierre de sesión fue cancelado porque has atacado."
+        );
 
         if (user.meditar) {
             handleProtocol.console('Debes dejar de meditar para realizar esta acción.', 'white', 0, 0, ws);

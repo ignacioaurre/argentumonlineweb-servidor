@@ -111,6 +111,7 @@ function Socket() {
                 });
 
                 if (!personajeWS.pvpChar) {
+                    personajeWS.map = personajeWS.map || 1;
                     personajeWS.posX = personajeWS.pos.x;
                     personajeWS.posY = personajeWS.pos.y;
                     personajeWS.connected = false;
@@ -151,33 +152,11 @@ function Socket() {
                         }
                     );
 
-                    funct.sendTelegramMessage(
-                        `[Servidor] Usuario ${
-                            personajeWS.nameCharacter
-                        } desconectado.`
-                    );
-
                     vars.usuariosOnline--;
-
-                    funct.sendTelegramMessage(
-                        `[Servidor] Usuarios online: ${vars.usuariosOnline}`
-                    );
 
                     socket.actOnline(vars.usuariosOnline);
                 } else {
                     vars.usuariosOnlinePvP--;
-
-                    funct.sendTelegramMessage(
-                        `[Servidor-PVP] Usuario ${
-                            personajeWS.nameCharacter
-                        } desconectado.`
-                    );
-
-                    funct.sendTelegramMessage(
-                        `[Servidor-PVP] Usuarios online: ${
-                            vars.usuariosOnlinePvP
-                        }`
-                    );
                 }
             }
         } catch (err) {

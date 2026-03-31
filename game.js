@@ -10,6 +10,94 @@ var game = new Game();
  * [Game description]
  */
 function Game() {
+    this.isSafeZone = function(user) {
+        try {
+            if (!user || !vars.mapData[user.map] || !vars.mapa[user.map]) {
+                return true;
+            }
+
+            const mapInfo = vars.mapData[user.map];
+
+            if (mapInfo.pk) {
+                return true;
+            }
+
+            return false;
+        } catch (err) {
+            funct.dumpError(err);
+            return true;
+        }
+    };
+
+    this.cancelLogout = function(idUser, message) {
+        try {
+            const user = vars.personajes[idUser];
+
+            if (!user || !user.logout || !user.logout.pending) {
+                return;
+            }
+
+            user.logout.pending = false;
+            user.logout.deadline = 0;
+            user.logout.lastNoticeSecond = 0;
+
+            if (message && vars.clients[idUser]) {
+                handleProtocol.console(
+                    message,
+                    "white",
+                    0,
+                    0,
+                    vars.clients[idUser]
+                );
+            }
+        } catch (err) {
+            funct.dumpError(err);
+        }
+    };
+
+    this.requestLogout = function(ws) {
+        try {
+            const user = vars.personajes[ws.id];
+
+            if (!user) {
+                socket.close(ws);
+                return;
+            }
+
+            if (game.isSafeZone(user)) {
+                game.closeForce(ws.id);
+                return;
+            }
+
+            if (user.logout && user.logout.pending) {
+                handleProtocol.console(
+                    "El cierre de sesión ya está en curso.",
+                    "white",
+                    0,
+                    0,
+                    ws
+                );
+                return;
+            }
+
+            user.logout = {
+                pending: true,
+                deadline: +Date.now() + 10000,
+                lastNoticeSecond: 10
+            };
+
+            handleProtocol.console(
+                "Deslogueando en 10 segundos. Se cancelará si te mueves, atacas o eres atacado.",
+                "white",
+                0,
+                0,
+                ws
+            );
+        } catch (err) {
+            funct.dumpError(err);
+        }
+    };
+
     /**
      * [legalPos Permite saber si hay bloqueos o agua en determinada posición]
      * @param  {number} x          [description]
@@ -781,6 +869,7 @@ function Game() {
             for (var i in vars.personajes) {
                 var user = vars.personajes[i];
                 if (!user.pvpChar) {
+                    user.map = user.map || 1;
                     user.posX = user.pos.x;
                     user.posY = user.pos.y;
                     user.connected = false;
@@ -1807,6 +1896,11 @@ function Game() {
             var user = vars.personajes[idUser];
             var userAttacked = vars.personajes[idUserAttacked];
 
+            game.cancelLogout(
+                idUserAttacked,
+                "El cierre de sesión fue cancelado porque has sido atacado."
+            );
+
             if (
                 vars.mapData[user.map].pk &&
                 !user.isNpc &&
@@ -2285,6 +2379,11 @@ function Game() {
         try {
             var user = vars.personajes[idUser];
             var userAttacked = vars.personajes[idUserAttacked];
+
+            game.cancelLogout(
+                idUserAttacked,
+                "El cierre de sesión fue cancelado porque has sido atacado."
+            );
 
             if (idUser == idUserAttacked) {
                 handleProtocol.console(

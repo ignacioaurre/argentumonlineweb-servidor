@@ -1,8 +1,17 @@
+require("dotenv").config();
+const pino = require("pino");
+
+const logger = pino({
+    level: process.env.LOG_LEVEL || "info",
+    transport: process.env.NODE_ENV !== "production"
+        ? { target: "pino-pretty", options: { colorize: true } }
+        : undefined
+});
+
 const WebSocketServer = require("ws").Server;
 
-const ws = new WebSocketServer({
-    port: 7666
-});
+const wsPort = parseInt(process.env.WS_PORT, 10) || 7666;
+const ws = new WebSocketServer({ port: wsPort });
 
 const loadMaps = require("./loadMaps");
 const loadObjs = require("./loadObjs");
@@ -26,9 +35,7 @@ const loadSpells = require("./loadSpells");
     const endInitialize = new Date() - startInitialize;
     const textInitializeServer = `[Servidor] Iniciado en ${endInitialize}ms.`;
 
-    funct.sendTelegramMessage(textInitializeServer);
-
-    console.log(textInitializeServer);
+    logger.info(textInitializeServer);
 })();
 
 const funct = require("./functions");
@@ -105,10 +112,36 @@ setInterval(function() {
                 vars.clients[idUser]
             );
         }
+
+        if (
+            user.logout &&
+            user.logout.pending &&
+            user.logout.deadline > 0 &&
+            vars.clients[idUser]
+        ) {
+            const remainingMs = user.logout.deadline - +Date.now();
+
+            if (remainingMs <= 0) {
+                game.closeForce(idUser);
+                continue;
+            }
+
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
+
+            if (remainingSeconds < user.logout.lastNoticeSecond) {
+                user.logout.lastNoticeSecond = remainingSeconds;
+                handleProtocol.console(
+                    `Deslogueando en ${remainingSeconds}...`,
+                    "white",
+                    0,
+                    0,
+                    vars.clients[idUser]
+                );
+            }
+        }
     }
 }, 500);
 
-//Limpio los personajes cerrados
 setInterval(function() {
     for (var idUser in vars.personajes) {
         if (vars.personajes[idUser].cerrado) {
@@ -117,8 +150,8 @@ setInterval(function() {
     }
 }, 60000);
 
-//TaskManager 60 ticks por segundo
-
 setInterval(function() {
     game.worldSave(() => {});
 }, 300000);
+
+module.exports = { logger };

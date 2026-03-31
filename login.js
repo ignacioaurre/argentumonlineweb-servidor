@@ -11,6 +11,57 @@ const _ = require("lodash");
 const login = new Login();
 
 function Login() {
+    const LOGIN_SPAWN = {
+        map: 1,
+        x: 50,
+        y: 50
+    };
+
+    const getFallbackSpawn = () => {
+        if (vars.mapData[LOGIN_SPAWN.map]) {
+            return LOGIN_SPAWN;
+        }
+
+        if (vars.mapData[272]) {
+            return { map: 272, x: 48, y: 77 };
+        }
+
+        const loadedMaps = Object.keys(vars.mapData);
+        const fallbackMap = loadedMaps.length ? parseInt(loadedMaps[0], 10) : 1;
+
+        return { map: fallbackMap, x: 50, y: 50 };
+    };
+
+    const normalizeCharacterPosition = personaje => {
+        const fallback = getFallbackSpawn();
+
+        const map = parseInt(personaje.map, 10);
+        const posX = parseInt(personaje.posX, 10);
+        const posY = parseInt(personaje.posY, 10);
+
+        personaje.map = vars.mapData[map] ? map : fallback.map;
+        personaje.posX = posX >= 1 && posX <= 100 ? posX : fallback.x;
+        personaje.posY = posY >= 1 && posY <= 100 ? posY : fallback.y;
+        personaje.pos = {
+            x: personaje.posX,
+            y: personaje.posY
+        };
+
+        if (
+            !vars.mapData[personaje.map] ||
+            !vars.mapData[personaje.map][personaje.pos.y] ||
+            !vars.mapData[personaje.map][personaje.pos.y][personaje.pos.x]
+        ) {
+            personaje.map = fallback.map;
+            personaje.posX = fallback.x;
+            personaje.posY = fallback.y;
+            personaje.pos = {
+                x: fallback.x,
+                y: fallback.y
+            };
+        }
+    };
+
     this.disconnectAllCharacters = function(ws, account) {
         for (var i in vars.personajes) {
             if (
@@ -79,22 +130,7 @@ function Login() {
                 personaje.id = String(ws.id);
                 personaje.nameCharacter = personaje.name;
 
-                if (!personaje.posX) {
-                    personaje.posX = 50;
-                }
-
-                if (!personaje.posY) {
-                    personaje.posY = 50;
-                }
-
-                if (!personaje.map) {
-                    personaje.map = 1;
-                }
-
-                personaje.pos = {
-                    x: personaje.posX,
-                    y: personaje.posY
-                };
+                normalizeCharacterPosition(personaje);
 
                 personaje.heading = 2;
 
@@ -148,6 +184,11 @@ function Login() {
                     usos: 0,
                     tiempoTotal: 0,
                     adv: 0
+                };
+                personaje.logout = {
+                    pending: false,
+                    deadline: 0,
+                    lastNoticeSecond: 0
                 };
 
                 personaje.inv = {};
@@ -206,13 +247,21 @@ function Login() {
 
                 vars.clients[ws.id] = ws;
 
-                if (
-                    vars.mapData[vars.personajes[ws.id].map][
+                const fallbackSpawn = getFallbackSpawn();
+                const currentMapData =
+                    vars.mapData[vars.personajes[ws.id].map]?.[
                         vars.personajes[ws.id].pos.y
-                    ][vars.personajes[ws.id].pos.x].id
-                ) {
-                    const pos = game.getFreeSpace(ws, 272, 77, 48);
+                    ]?.[vars.personajes[ws.id].pos.x];
 
+                if (!currentMapData || currentMapData.id) {
+                    const pos = game.getFreeSpace(
+                        ws,
+                        fallbackSpawn.map,
+                        fallbackSpawn.x,
+                        fallbackSpawn.y
+                    );
+
+                    vars.personajes[ws.id].map = fallbackSpawn.map;
                     vars.personajes[ws.id].pos.y = pos.y;
                     vars.personajes[ws.id].pos.x = pos.x;
                 }
@@ -261,17 +310,7 @@ function Login() {
                 handleProtocol.sendMyCharacter(personajeWS);
                 socket.send(ws);
 
-                funct.sendTelegramMessage(
-                    `[Servidor] Usuario ${
-                        personajeWS.nameCharacter
-                    } conectado en mapa ${vars.personajes[ws.id].map}.`
-                );
-
                 vars.usuariosOnline++;
-
-                funct.sendTelegramMessage(
-                    `[Servidor] Usuarios online: ${vars.usuariosOnline}`
-                );
 
                 handleProtocol.actOnline(vars.usuariosOnline);
 
@@ -369,6 +408,7 @@ function Login() {
             hit: { hits: 0, tiempoTotal: 0, startTimer: 0 },
             walk: { pasos: 0, tiempoTotal: 0, startTimer: 0 },
             useObj: { startTimer: 0, usos: 0, tiempoTotal: 0, adv: 0 },
+            logout: { pending: false, deadline: 0, lastNoticeSecond: 0 },
             inv: character.inv,
             pasosGenerales: 0,
             spells: character.spells,
@@ -383,13 +423,21 @@ function Login() {
 
         vars.clients[ws.id] = ws;
 
-        if (
-            vars.mapData[vars.personajes[ws.id].map][
+        const fallbackSpawn = getFallbackSpawn();
+        const currentMapData =
+            vars.mapData[vars.personajes[ws.id].map]?.[
                 vars.personajes[ws.id].pos.y
-            ][vars.personajes[ws.id].pos.x].id
-        ) {
-            const pos = game.getFreeSpace(ws, 272, 77, 48);
+            ]?.[vars.personajes[ws.id].pos.x];
 
+        if (!currentMapData || currentMapData.id) {
+            const pos = game.getFreeSpace(
+                ws,
+                fallbackSpawn.map,
+                fallbackSpawn.x,
+                fallbackSpawn.y
+            );
+
+            vars.personajes[ws.id].map = fallbackSpawn.map;
             vars.personajes[ws.id].pos.y = pos.y;
             vars.personajes[ws.id].pos.x = pos.x;
         }
@@ -403,17 +451,7 @@ function Login() {
 
         game.setNewAreas(ws);
 
-        funct.sendTelegramMessage(
-            `[Servidor-PVP] Usuario ${
-                newCharacter.nameCharacter
-            } conectado en mapa ${vars.personajes[ws.id].map}.`
-        );
-
         vars.usuariosOnlinePvP++;
-
-        funct.sendTelegramMessage(
-            `[Servidor-PVP] Usuarios online: ${vars.usuariosOnlinePvP}`
-        );
     };
 
     this.createId = function() {
