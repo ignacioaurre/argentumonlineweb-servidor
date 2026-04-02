@@ -1,4 +1,6 @@
 require("dotenv").config();
+const fs = require("fs");
+const https = require("https");
 const pino = require("pino");
 
 const logger = pino({
@@ -8,10 +10,24 @@ const logger = pino({
         : undefined
 });
 
-const WebSocketServer = require("ws").Server;
+const { Server: WebSocketServer } = require("ws");
 
 const wsPort = parseInt(process.env.WS_PORT, 10) || 7666;
-const ws = new WebSocketServer({ port: wsPort });
+
+let ws;
+if (process.env.SSL_CERT_PATH && process.env.SSL_KEY_PATH) {
+    const httpsServer = https.createServer({
+        cert: fs.readFileSync(process.env.SSL_CERT_PATH),
+        key: fs.readFileSync(process.env.SSL_KEY_PATH)
+    });
+    ws = new WebSocketServer({ server: httpsServer });
+    httpsServer.listen(wsPort, () => {
+        logger.info(`WSS (TLS) escuchando en puerto ${wsPort}`);
+    });
+} else {
+    ws = new WebSocketServer({ port: wsPort });
+    logger.info(`WS (sin TLS) escuchando en puerto ${wsPort}`);
+}
 
 const loadMaps = require("./loadMaps");
 const loadObjs = require("./loadObjs");

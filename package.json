@@ -3,6 +3,13 @@
     "version": "1.0.0",
     "description": "",
     "main": "server.js",
+    "devDependencies": {
+        "typescript": "^5.4.0",
+        "ts-node": "^10.9.2",
+        "@types/node": "^20.12.0",
+        "@types/ws": "^8.5.10",
+        "@types/bytebuffer": "^5.0.49"
+    },
     "dependencies": {
         "bcrypt-nodejs": "^0.0.3",
         "bytebuffer": "^5.0.1",
@@ -19,8 +26,11 @@
         "ws": "^7.2.0"
     },
     "scripts": {
-        "dev": "NODE_ENV=development supervisor server.js",
-        "start": "node server.js"
+        "dev": "NODE_ENV=development supervisor -e js,ts --exec ts-node server.js",
+        "start": "ts-node server.js",
+        "build": "tsc --project tsconfig.json",
+        "clean": "npm cache clean --force && rm -rf node_modules && rm -rf package-lock.json && npm install",
+        "start:prod": "node dist/server.js"
     },
     "repository": {
         "type": "git",
